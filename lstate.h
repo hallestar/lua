@@ -18,6 +18,25 @@ typedef struct CallInfo CallInfo;
 #include "ltm.h"
 #include "lzio.h"
 
+#if defined(LUA_USE_PERF_TRAMPOLINES)
+#include <stdio.h> // For FILE*
+// We need CallInfo to be defined for perf_trampoline_func_ptr.
+// Proto is in lobject.h, which is already included above.
+// CallInfo is defined below in this file.
+typedef void (*perf_trampoline_func_ptr)(struct lua_State *L, struct CallInfo *ci);
+
+struct PerfProtoInfo {
+    const struct Proto *proto;
+    perf_trampoline_func_ptr trampoline_func;
+    char *perf_name_str;
+};
+
+struct PerfTrampolineRegistry {
+    struct PerfProtoInfo *entries;
+    int count;
+    int capacity;
+};
+#endif
 
 /*
 ** Some notes about garbage-collected objects: All objects in Lua must
@@ -295,6 +314,11 @@ typedef struct global_State {
   lua_CFunction panic;  /* to be called in unprotected errors */
   struct lua_State *mainthread;
   TString *memerrmsg;  /* message for memory-allocation errors */
+#if defined(LUA_USE_PERF_TRAMPOLINES)
+  int perf_profiling_active;
+  FILE *perf_map_file;
+  struct PerfTrampolineRegistry perf_registry;
+#endif
   TString *tmname[TM_N];  /* array with tag-method names */
   struct Table *mt[LUA_NUMTYPES];  /* metatables for basic types */
   TString *strcache[STRCACHE_N][STRCACHE_M];  /* cache for strings in API */

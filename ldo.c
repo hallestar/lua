@@ -33,7 +33,26 @@
 #include "lvm.h"
 #include "lzio.h"
 
+#if defined(LUA_USE_PERF_TRAMPOLINES)
+#include "lperf.h"
+#include "lfunc.h"
 
+// Helper function to decide and call via trampoline if active
+static int call_lua_via_trampoline_if_active(lua_State *L, CallInfo *ci) {
+    global_State *g = G(L);
+    StkId func_ptr = restorestack(L, ci->func.offset); // Correctly get StkId
+    // Check main profiling switch and if the function is a Lua closure
+    if (g->perf_profiling_active && ttisLclosure(s2v(func_ptr))) {
+        const Proto *p = clLvalue(s2v(func_ptr))->p;
+        perf_trampoline_func_ptr trampoline = get_or_create_trampoline_for_proto(L, p);
+        if (trampoline) {
+            trampoline(L, ci); // Call via the assigned C trampoline function
+            return 1; // Indicates trampoline was used
+        }
+    }
+    return 0; // Trampoline not used or not applicable
+}
+#endif
 
 #define errorstatus(s)	((s) > LUA_YIELD)
 
@@ -634,7 +653,13 @@ l_sinline void ccall (lua_State *L, StkId func, int nResults, l_uint32 inc) {
   }
   if ((ci = luaD_precall(L, func, nResults)) != NULL) {  /* Lua function? */
     ci->callstatus = CIST_FRESH;  /* mark that it is a "fresh" execute */
+#if defined(LUA_USE_PERF_TRAMPOLINES)
+    if (!call_lua_via_trampoline_if_active(L, ci)) {
+      luaV_execute(L, ci);  /* call normal Lua function */
+    }
+#else
     luaV_execute(L, ci);  /* call it */
+#endif
   }
   L->nCcalls -= inc;
 }
