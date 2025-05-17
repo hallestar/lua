@@ -17,6 +17,8 @@
 #include <string.h>
 #include <stdlib.h> // For malloc, free, getenv, snprintf
 #include <time.h>   // For time_t in some systems if pid_t is complex
+#include <ctype.h>  // For tolower
+#include <string.h> // Already included, but for strcasecmp if available, or manual lowercasing
 
 // POSIX.1 standard header for getpid() and pid_t
 #if defined(__unix__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || (defined(__hpux) || defined(_AIX) && !defined(_WIN32))
@@ -148,7 +150,7 @@ static char* generate_perf_name(lua_State *L, const Proto *p) {
                  p->linedefined, short_source_buf, p->linedefined);
     }
 
-    char *result = (char *)luaM_malloc_(L, strlen(buffer) + 1, 0);
+    char *result = (char *)luaM_realloc_(L, NULL, 0, strlen(buffer) + 1);
     if (result) strcpy(result, buffer);
     return result;
 }
@@ -303,13 +305,34 @@ static const luaL_Reg perf_funcs[] = {
 
 LUALIB_API int luaopen_perf (lua_State *L) {
   luaL_newlib(L, perf_funcs);
-  // Initialize global state parts if not done elsewhere (e.g., in lua_newstate)
-  // This is a good place if 'perf' module is always loaded.
-  G(L)->perf_profiling_active = 0;
-  G(L)->perf_map_file = NULL;
-  G(L)->perf_registry.entries = NULL;
-  G(L)->perf_registry.count = 0;
-  G(L)->perf_registry.capacity = 0;
+
+  // Initialize global state parts related to perf
+  global_State *g = G(L);
+  g->perf_profiling_active = 0;
+  g->perf_map_file = NULL;
+  g->perf_registry.entries = NULL;
+  g->perf_registry.count = 0;
+  g->perf_registry.capacity = 0;
+
+  // Check for environment variable to enable profiling by default
+  const char *env_val = getenv("LUA_PERF_PROFILE");
+  if (env_val) {
+    // Simple case-insensitive check for common true values
+    char lower_env_val[16]; // Buffer for lowercase version
+    int i = 0;
+    for (i = 0; env_val[i] && i < sizeof(lower_env_val) - 1; i++) {
+        lower_env_val[i] = tolower((unsigned char)env_val[i]);
+    }
+    lower_env_val[i] = '\0';
+
+    if (strcmp(lower_env_val, "1") == 0 ||
+        strcmp(lower_env_val, "true") == 0 ||
+        strcmp(lower_env_val, "yes") == 0) {
+      // Call lua_perf_setprofile to enable it. This will open the map file etc.
+      // lua_perf_setprofile handles locking.
+      lua_perf_setprofile(L, 1); 
+    }
+  }
   return 1;
 }
 

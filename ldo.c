@@ -40,7 +40,9 @@
 // Helper function to decide and call via trampoline if active
 static int call_lua_via_trampoline_if_active(lua_State *L, CallInfo *ci) {
     global_State *g = G(L);
-    StkId func_ptr = restorestack(L, ci->func.offset); // Correctly get StkId
+    // ptrdiff_t top = savestack(L, L->top.p);  /* preserve original 'top' */
+    // StkId func_ptr = restorestack(L, ci->func.offset); // Correctly get StkId
+    StkId func_ptr = restorestack(L, savestack(L, ci->func.p));
     // Check main profiling switch and if the function is a Lua closure
     if (g->perf_profiling_active && ttisLclosure(s2v(func_ptr))) {
         const Proto *p = clLvalue(s2v(func_ptr))->p;
