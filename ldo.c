@@ -33,29 +33,6 @@
 #include "lvm.h"
 #include "lzio.h"
 
-#if defined(LUA_USE_PERF_TRAMPOLINES)
-#include "lperf.h"
-#include "lfunc.h"
-
-// Helper function to decide and call via trampoline if active
-static int call_lua_via_trampoline_if_active(lua_State *L, CallInfo *ci) {
-    global_State *g = G(L);
-    // ptrdiff_t top = savestack(L, L->top.p);  /* preserve original 'top' */
-    // StkId func_ptr = restorestack(L, ci->func.offset); // Correctly get StkId
-    StkId func_ptr = restorestack(L, savestack(L, ci->func.p));
-    // Check main profiling switch and if the function is a Lua closure
-    if (g->perf_profiling_active && ttisLclosure(s2v(func_ptr))) {
-        const Proto *p = clLvalue(s2v(func_ptr))->p;
-        perf_trampoline_func_ptr trampoline = get_or_create_trampoline_for_proto(L, p);
-        if (trampoline) {
-            trampoline(L, ci); // Call via the assigned C trampoline function
-            return 1; // Indicates trampoline was used
-        }
-    }
-    return 0; // Trampoline not used or not applicable
-}
-#endif
-
 #define errorstatus(s)	((s) > LUA_YIELD)
 
 
@@ -655,9 +632,17 @@ l_sinline void ccall (lua_State *L, StkId func, int nResults, l_uint32 inc) {
   }
   if ((ci = luaD_precall(L, func, nResults)) != NULL) {  /* Lua function? */
     ci->callstatus = CIST_FRESH;  /* mark that it is a "fresh" execute */
-#if defined(LUA_USE_PERF_TRAMPOLINES)
-    if (!call_lua_via_trampoline_if_active(L, ci)) {
-      luaV_execute(L, ci);  /* call normal Lua function */
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+    if (G(L)->current_executor_func_ptr_for_perf) {
+        // This function pointer will call lua_G_trampoline_executor if active,
+        // or the original lua executor wrapper. Both take (lua_State *L)
+        // and use L->ci internally.
+        G(L)->current_executor_func_ptr_for_perf(L);
+    } else {
+        // This fallback should ideally not be reached if Lua state initialization
+        // and trampoline system initialization are correct.
+        fprintf(stderr, "LUA PERF TRAMPOLINE CRITICAL: current_executor_func_ptr_for_perf is NULL! Falling back.\n");
+        luaV_execute(L, ci); // Fallback to direct original call
     }
 #else
     luaV_execute(L, ci);  /* call it */

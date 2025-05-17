@@ -18,7 +18,7 @@ typedef struct CallInfo CallInfo;
 #include "ltm.h"
 #include "lzio.h"
 
-#if defined(LUA_USE_PERF_TRAMPOLINES)
+#if defined(LUA_HAVE_PERF_TRAMPOLINE)
 #include <stdio.h> // For FILE*
 // We need CallInfo to be defined for perf_trampoline_func_ptr.
 // Proto is in lobject.h, which is already included above.
@@ -314,7 +314,12 @@ typedef struct global_State {
   lua_CFunction panic;  /* to be called in unprotected errors */
   struct lua_State *mainthread;
   TString *memerrmsg;  /* message for memory-allocation errors */
-#if defined(LUA_USE_PERF_TRAMPOLINES)
+
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+  void (*current_executor_func_ptr_for_perf)(struct lua_State *L);
+#endif
+
+#if defined(LUA_HAVE_PERF_TRAMPOLINE)
   int perf_profiling_active;
   FILE *perf_map_file;
   struct PerfTrampolineRegistry perf_registry;

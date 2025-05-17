@@ -34,7 +34,7 @@
 #include "lualib.h"
 #include "lauxlib.h"
 
-#if defined(LUA_USE_PERF_TRAMPOLINES)
+#if defined(LUA_HAVE_PERF_TRAMPOLINE)
 #include "lperf.h" // For luaopen_perf
 #endif
 
@@ -53,7 +53,7 @@ static const luaL_Reg loadedlibs[] = {
   {LUA_MATHLIBNAME, luaopen_math},
   {LUA_UTF8LIBNAME, luaopen_utf8},
   {LUA_DBLIBNAME, luaopen_debug},
-#if defined(LUA_USE_PERF_TRAMPOLINES)
+#if defined(LUA_HAVE_PERF_TRAMPOLINE)
   {"perf", luaopen_perf},
 #endif
   {NULL, NULL}

@@ -70,7 +70,7 @@ LOCAL = $(TESTS) $(CWARNS)
 
 
 # enable Linux goodies
-MYCFLAGS= $(LOCAL) -std=c99 -DLUA_USE_LINUX -DLUA_USE_READLINE -DLUA_USE_PERF_TRAMPOLINES=1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+MYCFLAGS= $(LOCAL) -std=c99 -DLUA_USE_LINUX -DLUA_USE_READLINE -DLUA_USE_PERF_TRAMPOLINES=1 -DLUA_HAVE_PERF_TRAMPOLINE=1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 MYLDFLAGS= $(LOCAL) -Wl,-E
 MYLIBS= -ldl -lreadline
 
@@ -92,7 +92,7 @@ LIBS = -lm
 CORE_T=	liblua.a
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
-	ltm.o lundump.o lvm.o lzio.o ltests.o lperf.o
+	ltm.o lundump.o lvm.o lzio.o ltests.o lperf.o lperf_trampoline.o
 AUX_O=	lauxlib.o
 LIB_O=	lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o lstrlib.o \
 	lutf8lib.o loadlib.o lcorolib.o linit.o
@@ -208,5 +208,6 @@ lvm.o: lvm.c lprefix.h lua.h luaconf.h ldebug.h lstate.h lobject.h \
 lzio.o: lzio.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h \
  lobject.h ltm.h lzio.h
 lperf.o: lperf.c lperf.h lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h
+lperf_trampoline.o: lperf_trampoline.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h
 
 # (end of Makefile)

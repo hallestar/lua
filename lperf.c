@@ -2,7 +2,7 @@
 
 #include "lperf.h"
 
-#if defined(LUA_USE_PERF_TRAMPOLINES)
+#if defined(LUA_HAVE_PERF_TRAMPOLINE)
 
 #include "lobject.h"
 #include "lstate.h"
@@ -336,4 +336,4 @@ LUALIB_API int luaopen_perf (lua_State *L) {
   return 1;
 }
 
-#endif // LUA_USE_PERF_TRAMPOLINES
+#endif // LUA_HAVE_PERF_TRAMPOLINE

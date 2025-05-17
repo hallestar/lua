@@ -27,6 +27,13 @@
 #include "ltable.h"
 #include "ltm.h"
 
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+// Assuming luaV_execute_for_perf_trampoline will be defined elsewhere (e.g., lvm.c)
+// and potentially declared in a header like lvm.h for wider use.
+// If not in a common header, declare it extern here for lstate.c's use.
+struct lua_State; // Forward declaration often needed for function pointer types
+extern void luaV_execute_for_perf_trampoline (struct lua_State *L);
+#endif
 
 
 /*
@@ -368,6 +375,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   L->tt = LUA_VTHREAD;
   g->currentwhite = bitmask(WHITE0BIT);
   L->marked = luaC_white(g);
+  L->top.p = NULL;  /* temporary value to avoid access to invalid stack */
   preinit_thread(L, g);
   g->allgc = obj2gco(L);  /* by now, only object is the main thread */
   L->next = NULL;
@@ -378,7 +386,7 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->ud_warn = NULL;
   g->mainthread = L;
   g->seed = luai_makeseed(L);
-  g->gcstp = GCSTPGC;  /* no GC while building state */
+  g->gcstp = 1;  /* no GC while building state */
   g->strt.size = g->strt.nuse = 0;
   g->strt.hash = NULL;
   setnilvalue(&g->l_registry);
@@ -397,13 +405,19 @@ LUA_API lua_State *lua_newstate (lua_Alloc f, void *ud) {
   g->totalbytes = sizeof(LG);
   g->GCdebt = 0;
   g->lastatomic = 0;
-  setivalue(&g->nilvalue, 0);  /* to signal that state is not yet built */
+  setivalue(&g->nilvalue, 0); /* to flag incomplete state */
   setgcparam(g->gcpause, LUAI_GCPAUSE);
   setgcparam(g->gcstepmul, LUAI_GCMUL);
   g->gcstepsize = LUAI_GCSTEPSIZE;
   setgcparam(g->genmajormul, LUAI_GENMAJORMUL);
   g->genminormul = LUAI_GENMINORMUL;
   for (i=0; i < LUA_NUMTAGS; i++) g->mt[i] = NULL;
+
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+  // Initialize the current executor to the default Lua executor wrapper
+  g->current_executor_func_ptr_for_perf = luaV_execute_for_perf_trampoline;
+#endif
+
   if (luaD_rawrunprotected(L, f_luaopen, NULL) != LUA_OK) {
     /* memory allocation error: free partial state */
     close_state(L);

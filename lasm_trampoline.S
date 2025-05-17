@@ -1,0 +1,51 @@
+    .text
+    .globl	_Lua_trampoline_func_start
+
+// The C function signature for the JITted trampoline code is:
+// void trampoline_code(lua_State *L, void *original_lua_executor_func_ptr);
+//
+// When called from C (e.g., from lua_G_trampoline_executor):
+//   trampoline_entry(L, lua_G_original_executor);
+//
+// Calling convention for common ABIs (System V AMD64, AAPCS64):
+// - 1st argument (lua_State *L): rdi (x86-64), x0 (aarch64), a0 (riscv)
+// - 2nd argument (original_lua_executor_func_ptr): rsi (x86-64), x1 (aarch64), a1 (riscv)
+//
+// The trampoline then calls original_lua_executor_func_ptr(L).
+// The lua_State *L (already in rdi/x0/a0) is correctly positioned as the first argument
+// for the call to original_lua_executor_func_ptr.
+
+_Lua_trampoline_func_start:
+#ifdef __x86_64__
+    // rdi holds lua_State *L
+    // rsi holds original_lua_executor_func_ptr
+    call    *%rsi  // Call original_lua_executor_func_ptr(L)
+    ret
+    // sub    $8, %rsp
+    // call    *%rcx
+    // add    $8, %rsp
+    // ret
+#elif defined(__aarch64__) // ARM64
+    // x0 holds lua_State *L
+    // x1 holds original_lua_executor_func_ptr
+    blr     x1     // Branch with link to register x1 (calls function at address in x1)
+    ret            // Return from trampoline
+#elif defined(__riscv) && __riscv_xlen == 64 // RV64G
+    // a0 holds lua_State *L
+    // a1 holds original_lua_executor_func_ptr
+    // This is a tail call, so we can just jump.
+    // The 'jalr' instruction is typically used for calls where 'ra' (return address) is set.
+    // 'jr' is a pseudo-instruction often equivalent to 'jalr zero, rs1, 0'.
+    jr      a1     // Jump to address in a1. 'a0' is passed as the first arg.
+#else
+    // Placeholder for other architectures or error
+    // This will likely cause a link error if no architecture is matched,
+    // or a runtime error if somehow compiled.
+    // Consider adding a .error directive if using GAS for unsupported targets.
+#endif
+
+    .globl	_Lua_trampoline_func_end
+_Lua_trampoline_func_end:
+    // Ensure the section is executable and has proper attributes for JIT code.
+    // .balign 16 // Optional: align end for safety, though size calculation should handle it.
+    .section        .note.GNU-stack,"",@progbits 

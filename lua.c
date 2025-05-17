@@ -20,6 +20,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+#include "lperf_trampoline.h"
+#endif
+
 
 #if !defined(LUA_PROGNAME)
 #define LUA_PROGNAME		"lua"
@@ -632,15 +636,28 @@ static int pmain (lua_State *L) {
   luaL_checkversion(L);  /* check that interpreter has correct version */
   if (args == has_error) {  /* bad arg? */
     print_usage(argv[script]);  /* 'script' has index of bad arg. */
-    return 0;
+    lua_pushboolean(L, 0); /* signal error */
+    return 1;
   }
-  if (args & has_v)  /* option '-v'? */
-    print_version();
+  if (argv[0] && argv[0][0]) progname = argv[0];
   if (args & has_E) {  /* option '-E'? */
     lua_pushboolean(L, 1);  /* signal for libraries to ignore env. vars. */
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
   }
+  lua_gc(L, LUA_GCSTOP);  /* stop GC while building state */
   luaL_openlibs(L);  /* open standard libraries */
+
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+  if (lua_perf_trampoline_init(L, 1) != 0) {
+    /* Use l_message for consistency, or lua_writestringerror if preferred */
+    l_message(progname, "Warning: Failed to initialize Lua performance trampolines.");
+    /* Alternatively, to match print_usage style more closely:
+    lua_writestringerror("%s: ", progname);
+    lua_writestringerror("%s\n", "Warning: Failed to initialize Lua performance trampolines.");
+    */
+  }
+#endif
+
   createargtable(L, argv, argc, script);  /* create table 'arg' */
   lua_gc(L, LUA_GCRESTART);  /* start GC... */
   lua_gc(L, LUA_GCGEN, 0, 0);  /* ...in generational mode */
@@ -663,7 +680,19 @@ static int pmain (lua_State *L) {
     }
     else dofile(L, NULL);  /* executes stdin as a file */
   }
-  lua_pushboolean(L, 1);  /* signal no errors */
+  lua_settop(L, 0);  /* clear stack */
+  if (L->status != LUA_OK && L->status != LUA_YIELD) { /* error? */
+    L->status = LUA_ERRRUN;  /* fake return code */
+    report(L, LUA_ERRRUN); /* report original error */
+    lua_pushboolean(L, 0); /* signal error */
+  }
+  else
+    lua_pushboolean(L, 1);  /* signal no errors */
+
+#ifdef LUA_HAVE_PERF_TRAMPOLINE
+  lua_perf_trampoline_fini(L);
+#endif
+  lua_close(L);
   return 1;
 }
 
