@@ -65,6 +65,9 @@ CWARNS= $(CWARNSCPP) $(CWARNSC) $(CWARNGCC)
 # -fsanitize=pointer-subtract -fsanitize=address -fsanitize=pointer-compare
 # TESTS= -DLUA_USER_H='"ltests.h"' -O0 -g
 
+# ASan flags
+ASAN_CFLAGS = -fsanitize=address -fsanitize=pointer-subtract -fsanitize=pointer-compare
+ASAN_LDFLAGS = -fsanitize=address -fsanitize=pointer-subtract -fsanitize=pointer-compare
 
 LOCAL = $(TESTS) $(CWARNS)
 
@@ -74,8 +77,15 @@ MYCFLAGS= $(LOCAL) -std=c99 -DLUA_USE_LINUX -DLUA_USE_READLINE -DLUA_USE_PERF_TR
 MYLDFLAGS= $(LOCAL) -Wl,-E
 MYLIBS= -ldl -lreadline
 
+# Conditionally add ASan flags
+ifeq ($(ENABLE_ASAN),1)
+  MYCFLAGS += $(ASAN_CFLAGS)
+  MYLDFLAGS += $(ASAN_LDFLAGS)
+  # It might be necessary to add to LIBS as well, e.g., if a specific ASan runtime library needs to be linked
+  # MYLIBS += -lasan # This is often not needed as -fsanitize=address handles it for gcc/clang
+endif
 
-CC= gcc
+CC= clang
 #CFLAGS= -Wall -O2 $(MYCFLAGS) -fno-stack-protector -fno-common -march=native
 CFLAGS= -Wall -O0 -g $(MYCFLAGS) -fno-stack-protector -fno-common -march=native
 AR= ar rc
@@ -92,7 +102,7 @@ LIBS = -lm
 CORE_T=	liblua.a
 CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	lmem.o lobject.o lopcodes.o lparser.o lstate.o lstring.o ltable.o \
-	ltm.o lundump.o lvm.o lzio.o ltests.o lperf.o lperf_trampoline.o
+	ltm.o lundump.o lvm.o lzio.o ltests.o lperf.o lperf_trampoline.o lasm_trampoline.o
 AUX_O=	lauxlib.o
 LIB_O=	lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o lstrlib.o \
 	lutf8lib.o loadlib.o lcorolib.o linit.o
@@ -209,5 +219,6 @@ lzio.o: lzio.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h \
  lobject.h ltm.h lzio.h
 lperf.o: lperf.c lperf.h lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h
 lperf_trampoline.o: lperf_trampoline.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h
+lasm_trampoline.o: lasm_trampoline.S
 
 # (end of Makefile)
