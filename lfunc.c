@@ -260,6 +260,9 @@ Proto *luaF_newproto (lua_State *L) {
   f->linedefined = 0;
   f->lastlinedefined = 0;
   f->source = NULL;
+  #ifdef LUA_HAVE_PERF_TRAMPOLINE
+  f->perf_trampoline_entry = NULL;
+  #endif
   return f;
 }
 

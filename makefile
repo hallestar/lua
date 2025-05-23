@@ -73,7 +73,7 @@ LOCAL = $(TESTS) $(CWARNS)
 
 
 # enable Linux goodies
-MYCFLAGS= $(LOCAL) -std=c99 -DLUA_USE_LINUX -DLUA_USE_READLINE -DLUA_USE_PERF_TRAMPOLINES=1 -DLUA_HAVE_PERF_TRAMPOLINE=1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+MYCFLAGS= $(LOCAL) -std=gnu11 -DLUA_USE_LINUX -DLUA_USE_READLINE -DLUA_USE_PERF_TRAMPOLINES=1 -DLUA_HAVE_PERF_TRAMPOLINE=1 -fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 MYLDFLAGS= $(LOCAL) -Wl,-E
 MYLIBS= -ldl -lreadline
 

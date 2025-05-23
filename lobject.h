@@ -569,9 +569,9 @@ typedef struct Proto {
   AbsLineInfo *abslineinfo;  /* idem */
   LocVar *locvars;  /* information about local variables (debug information) */
   TString  *source;  /* used for debug information */
-  // #ifdef LUA_HAVE_PERF_TRAMPOLINE
+  #ifdef LUA_HAVE_PERF_TRAMPOLINE
   void *perf_trampoline_entry; // Points to the compiled trampoline for this Proto
-  // #endif
+  #endif
   GCObject *gclist;
 } Proto;
 
