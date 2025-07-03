@@ -2,4 +2,4 @@ CompileFlags:
   Add:
     - -DPY_HAVE_PERF_TRAMPOLINE=1
     - -DLUA_HAVE_PERF_TRAMPOLINE=1
-
+    - -U_WIN32 
