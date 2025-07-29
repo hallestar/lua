@@ -635,10 +635,10 @@ static int pmain (lua_State *L) {
   luaL_checkversion(L);  /* check that interpreter has correct version */
   if (args == has_error) {  /* bad arg? */
     print_usage(argv[script]);  /* 'script' has index of bad arg. */
-    lua_pushboolean(L, 0); /* signal error */
-    return 1;
+    return 0;
   }
-  if (argv[0] && argv[0][0]) progname = argv[0];
+  if (args & has_v)  /* option '-v'? */
+    print_version();
   if (args & has_E) {  /* option '-E'? */
     lua_pushboolean(L, 1);  /* signal for libraries to ignore env. vars. */
     lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
@@ -679,19 +679,12 @@ static int pmain (lua_State *L) {
     }
     else dofile(L, NULL);  /* executes stdin as a file */
   }
-  lua_settop(L, 0);  /* clear stack */
-  if (L->status != LUA_OK && L->status != LUA_YIELD) { /* error? */
-    L->status = LUA_ERRRUN;  /* fake return code */
-    report(L, LUA_ERRRUN); /* report original error */
-    lua_pushboolean(L, 0); /* signal error */
-  }
-  else
-    lua_pushboolean(L, 1);  /* signal no errors */
+
+  lua_pushboolean(L, 1);  /* signal no errors */
 
 #ifdef LUA_HAVE_PERF_TRAMPOLINE
   lua_perf_trampoline_fini(L);
 #endif
-  lua_close(L);
   return 1;
 }
 

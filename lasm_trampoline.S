@@ -19,29 +19,32 @@ _Lua_trampoline_func_start:
 #ifdef __x86_64__
     // rdi holds lua_State *L
     // rsi holds original_lua_executor_func_ptr
-    call    *%rsi  // Call original_lua_executor_func_ptr(L)
+    
+    // Ensure 16-byte stack alignment required by System V AMD64 ABI
+    // When this function is called, the stack should already be 16-byte aligned
+    // plus 8 bytes for the return address pushed by call instruction.
+    // So we need to subtract 8 bytes to maintain 16-byte alignment before calling.
+    sub     $8, %rsp       // Align stack to 16 bytes
+    call    *%rsi          // Call original_lua_executor_func_ptr(L)
+    add     $8, %rsp       // Restore stack pointer
     ret
-    // sub    $8, %rsp
-    // call    *%rcx
-    // add    $8, %rsp
-    // ret
 #elif defined(__aarch64__) // ARM64
     // x0 holds lua_State *L
     // x1 holds original_lua_executor_func_ptr
-    blr     x1     // Branch with link to register x1 (calls function at address in x1)
-    ret            // Return from trampoline
+    
+    // Use tail call optimization - just jump to the target function
+    // This preserves the original return address in the link register
+    br      x1             // Branch to address in x1 (tail call)
 #elif defined(__riscv) && __riscv_xlen == 64 // RV64G
     // a0 holds lua_State *L
     // a1 holds original_lua_executor_func_ptr
+    
     // This is a tail call, so we can just jump.
-    // The 'jalr' instruction is typically used for calls where 'ra' (return address) is set.
-    // 'jr' is a pseudo-instruction often equivalent to 'jalr zero, rs1, 0'.
-    jr      a1     // Jump to address in a1. 'a0' is passed as the first arg.
+    // The 'jr' instruction is a pseudo-instruction equivalent to 'jalr zero, rs1, 0'.
+    jr      a1             // Jump to address in a1. 'a0' is passed as the first arg.
 #else
-    // Placeholder for other architectures or error
-    // This will likely cause a link error if no architecture is matched,
-    // or a runtime error if somehow compiled.
-    // Consider adding a .error directive if using GAS for unsupported targets.
+    // Unsupported architecture - generate a compile-time error
+    .error "Unsupported architecture for trampoline function"
 #endif
 
     .globl	_Lua_trampoline_func_end
