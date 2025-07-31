@@ -1903,7 +1903,7 @@ void luaV_execute (lua_State *L, CallInfo *ci) {
 
 // This is the function that current_executor_func_ptr_for_perf will point to initially.
 // It just calls the main Lua execution logic.
-void luaV_execute_for_perf_trampoline(lua_State *L) {
+void luaV_execute_for_perf_trampoline(lua_State *L, CallInfo *ci) {
     // L->ci should be set up by luaD_precall before this point.
-    luaV_execute(L, L->ci);
+    luaV_execute(L, ci);
 }

@@ -316,7 +316,7 @@ typedef struct global_State {
   TString *memerrmsg;  /* message for memory-allocation errors */
 
 #ifdef LUA_HAVE_PERF_TRAMPOLINE
-  void (*current_executor_func_ptr_for_perf)(struct lua_State *L);
+  void (*current_executor_func_ptr_for_perf)(struct lua_State *L, CallInfo *ci);
 #endif
 
 #if defined(LUA_HAVE_PERF_TRAMPOLINE)

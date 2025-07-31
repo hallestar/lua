@@ -644,7 +644,7 @@ l_sinline void ccall (lua_State *L, StkId func, int nResults, l_uint32 inc) {
         // This function pointer will call lua_G_trampoline_executor if active,
         // or the original lua executor wrapper. Both take (lua_State *L)
         // and use L->ci internally.
-        G(L)->current_executor_func_ptr_for_perf(L);
+        G(L)->current_executor_func_ptr_for_perf(L, ci);
     } else {
         // This fallback should ideally not be reached if Lua state initialization
         // and trampoline system initialization are correct.

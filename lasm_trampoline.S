@@ -9,7 +9,8 @@
 //
 // Calling convention for common ABIs (System V AMD64, AAPCS64):
 // - 1st argument (lua_State *L): rdi (x86-64), x0 (aarch64), a0 (riscv)
-// - 2nd argument (original_lua_executor_func_ptr): rsi (x86-64), x1 (aarch64), a1 (riscv)
+// - 2nd ci
+// - 3nd argument (original_lua_executor_func_ptr): rsi (x86-64), x1 (aarch64), a1 (riscv)
 //
 // The trampoline then calls original_lua_executor_func_ptr(L).
 // The lua_State *L (already in rdi/x0/a0) is correctly positioned as the first argument
@@ -25,7 +26,7 @@ _Lua_trampoline_func_start:
     // plus 8 bytes for the return address pushed by call instruction.
     // So we need to subtract 8 bytes to maintain 16-byte alignment before calling.
     sub     $8, %rsp       // Align stack to 16 bytes
-    call    *%rsi          // Call original_lua_executor_func_ptr(L)
+    call    *%rdx          // Call original_lua_executor_func_ptr(L)
     add     $8, %rsp       // Restore stack pointer
     ret
 #elif defined(__aarch64__) // ARM64

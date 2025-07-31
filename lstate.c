@@ -32,7 +32,7 @@
 // and potentially declared in a header like lvm.h for wider use.
 // If not in a common header, declare it extern here for lstate.c's use.
 struct lua_State; // Forward declaration often needed for function pointer types
-extern void luaV_execute_for_perf_trampoline (struct lua_State *L);
+extern void luaV_execute_for_perf_trampoline (struct lua_State *L, CallInfo *ci);
 #endif
 
 

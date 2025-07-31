@@ -202,7 +202,7 @@ void *lua_perf_compile_trampoline_for_proto(lua_State *L, Proto *p) {
     return trampoline;
 }
 
-void lua_G_trampoline_executor(lua_State *L) {
+void lua_G_trampoline_executor(lua_State *L, CallInfo *ci) {
     // If the original executor is not set, we are in a bad state.
     // This might happen if init wasn't called or failed very early.
     // Fallback to direct execution via G(L)->current_executor_func_ptr_for_perf
@@ -214,7 +214,7 @@ void lua_G_trampoline_executor(lua_State *L) {
         // For safety, try to call what's in current_executor_func_ptr_for_perf,
         // hoping it's the default luaV_execute_for_perf_trampoline.
         if (G(L)->current_executor_func_ptr_for_perf) {
-             G(L)->current_executor_func_ptr_for_perf(L);
+             G(L)->current_executor_func_ptr_for_perf(L, ci);
         }
         // If current_executor_func_ptr_for_perf is also NULL, Lua will likely crash,
         // but there's not much we can do here.
@@ -222,11 +222,13 @@ void lua_G_trampoline_executor(lua_State *L) {
     }
 
     if (g_perf_status != LUA_PERF_STATUS_OK) { // Check if active and OK
-        lua_G_original_executor(L); // Not active or error, call original
+        lua_G_original_executor(L, ci); // Not active or error, call original
         return;
     }
 
-    CallInfo *ci = L->ci;
+    if (ci == NULL) {
+        ci = L->ci;
+    }
     if (ci != NULL && ttisLclosure(s2v(ci->func.p))) {
         Closure *cl = clLvalue(s2v(ci->func.p));
         Proto *p = cl->l.p;
@@ -236,12 +238,12 @@ void lua_G_trampoline_executor(lua_State *L) {
                 trampoline = lua_perf_compile_trampoline_for_proto(L, p);
             }
             if (trampoline) {
-                ((void (*)(lua_State*, lua_original_executor_t))trampoline)(L, lua_G_original_executor);
+                ((void (*)(lua_State*, CallInfo*, lua_original_executor_t))trampoline)(L, ci, lua_G_original_executor);
                 return;
             }
         }
     }
-    lua_G_original_executor(L);
+    lua_G_original_executor(L, ci);
 }
 
 static FILE* g_perf_map_file = NULL;
@@ -249,20 +251,67 @@ static FILE* g_perf_map_file = NULL;
 static void default_perf_map_write_entry(void *state, const void *code_addr, 
                                          unsigned int code_size, Proto *p, lua_State *L) {
     FILE *f = (FILE*)state;
+    lua_Debug ar;
     if (!f || !p) return;
-    const char *name = p->source ? getstr(p->source) : "unknown_source";
-    if (p->linedefined > 0) {
-        fprintf(f, "%lx %x lua::%s:%d\n", 
-                (unsigned long)code_addr, 
-                code_size, 
-                name, 
-                p->linedefined);
-    } else {
+
+    if (!lua_getstack(L, 0, &ar))
+        return;
+
+    lua_getinfo(L, "Slnt", &ar);
+
+    // char buffer[512] = {0};
+    // char short_source_buf[256] = "unknown_source";
+    const char *name = ar.what;
+    int linedefined = 0;
+
+    // if (p->source) {
+    //     const char *source_str = getstr(p->source);
+    //     if (source_str) {
+    //         const char *s = source_str;
+    //         if (s[0] == '@') s++;
+    //         else if (s[0] == '=') s++;
+
+    //         const char *path_sep_fwd = strrchr(s, '/');
+    //         const char *path_sep_bwd = strrchr(s, '\\');
+    //         if (path_sep_fwd || path_sep_bwd) {
+    //             s = (path_sep_fwd > path_sep_bwd ? path_sep_fwd : path_sep_bwd) + 1;
+    //         }
+    //         strncpy(short_source_buf, s, sizeof(short_source_buf) - 1);
+    //         short_source_buf[sizeof(short_source_buf) - 1] = '\0';
+    //     }
+    // }
+
+    linedefined = ar.linedefined;
+
+    if (linedefined == 0) { // Often indicates main chunk or C func
         fprintf(f, "%lx %x lua::%s\n", 
                 (unsigned long)code_addr, 
                 code_size, 
                 name);
+
+    } else {
+        // No direct 'name' field in Proto. For named functions, debug info is separate.
+        // We will use a placeholder for the name for now, relying on source and line.
+        fprintf(f, "%lx %x lua::%s:%d\n",
+                (unsigned long)code_addr, 
+                code_size, 
+                name, 
+                ar.linedefined);
     }
+
+    // const char *name = p->source ? getstr(p->source) : "unknown_source";
+    // if (p->linedefined > 0) {
+    //     fprintf(f, "%lx %x lua::%s:%d\n", 
+    //             (unsigned long)code_addr, 
+    //             code_size, 
+    //             name, 
+    //             p->linedefined);
+    // } else {
+    //     fprintf(f, "%lx %x lua::%s\n", 
+    //             (unsigned long)code_addr, 
+    //             code_size, 
+    //             name);
+    // }
     fflush(f);
 }
 

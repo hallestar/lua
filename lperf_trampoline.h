@@ -43,7 +43,7 @@ int lua_perf_trampoline_fini(lua_State *L); // Cleans up and unhooks
 void lua_perf_trampoline_free_arenas(void); // Frees all mmaped arenas
 
 // Function pointer type for the original Lua executor (e.g., a part of luaV_execute)
-typedef void (*lua_original_executor_t)(lua_State *L);
+typedef void (*lua_original_executor_t)(lua_State *L, CallInfo *ci);
 
 // This will be set by lua_perf_trampoline_init to point to the original Lua executor.
 // The trampoline code will call this.
@@ -51,7 +51,7 @@ extern lua_original_executor_t lua_G_original_executor;
 
 // The replacement function that Lua will call when trampolines are active.
 // This function checks for/compiles a trampoline and then calls it.
-void lua_G_trampoline_executor(lua_State *L);
+void lua_G_trampoline_executor(lua_State *L, CallInfo *ci);
 
 // Internal function to compile a trampoline for a Proto if it doesn't have one.
 // Returns the executable trampoline address or NULL.
